@@ -1,11 +1,21 @@
+import csv
+import serial
 import random
 import time
 import threading
 import pygame
 import sys
 import os
-import Traffic_Q_Learning3
-from Traffic_Q_Learning3 import choose_action,state_action_pair
+# import Traffic_Q_Learning3
+
+
+
+sys.path.insert(0, 'D:\Documents\kuliah\SMT_8\TA 2\Implementasi Produk\References\Traffic-Intersection-Simulation-with-Stats-main\Traffic-Intersection-Simulation-with-Stats-main')
+import Traffic_Q_Learning3_
+from Traffic_Q_Learning3_ import choose_action,state_action_pair
+# serialcomm = serial.Serial('COM5', 9600)            #arduino
+
+# serialcomm.timeout = 1                              #arduino
 
 # Default values of signal timers
 # defaultGreen = {0:10, 1:10, 2:10, 3:10}
@@ -28,7 +38,7 @@ x = {'right':[0,0,0], 'down':[755,727,697], 'left':[1400,1400,1400], 'up':[602,6
 y = {'right':[348,370,398], 'down':[0,0,0], 'left':[498,466,436], 'up':[800,800,800]}
 
 vehicles = {'right': {0:[], 1:[], 2:[], 'crossed':0}, 'down': {0:[], 1:[], 2:[], 'crossed':0}, 'left': {0:[], 1:[], 2:[], 'crossed':0}, 'up': {0:[], 1:[], 2:[], 'crossed':0}}
-vehicleTypes = {0:'car', 1:'bus', 2:'truck', 3:'bike'}
+vehicleTypes = {0:'car'}
 directionNumbers = {0:'right', 1:'down', 2:'left', 3:'up'}
 
 # Coordinates of signal image, timer, and vehicle count
@@ -56,7 +66,7 @@ randomGreenSignalTimer = True
 randomGreenSignalTimerRange = [5,5]
 
 timeElapsed = 0
-simulationTime = 300
+simulationTime = 100
 timeElapsedCoods = (1100,50)
 vehicleCountTexts = ["0", "0", "0", "0"]
 vehicleCountCoods = [(480,210),(880,210),(880,550),(480,550)]
@@ -391,7 +401,16 @@ def repeat():
     param_left=car_counter_left()
     param_up=car_counter_up()
 
-    get_state(param_right,param_down,param_left,param_up)
+    state_for_arduino=get_state(param_right,param_down,param_left,param_up)
+
+    # serialcomm.open()
+    # serialcomm.write((str(state_for_arduino)).encode())              #arduino
+    # time.sleep(0.5)                                         #arduino
+
+    # print(serialcomm.readline().decode('ascii'))            #arduino
+
+    
+
     state_action_pair()
     print ('state:',get_state(param_right,param_down,param_left,param_up))
     print ('chosen action:',state_action_pair.action_pair[get_state(param_right,param_down,param_left,param_up)])
@@ -413,10 +432,35 @@ def repeat():
         cumulative_waiting_vehicles=cumulative_waiting_vehicles+total_waiting_vehicle[i]
 
     print('cumulative waiting vehicles:', cumulative_waiting_vehicles)
+     
 
+   
+
+    with open('data_RL_25,25,25,25.csv', 'a', encoding='UTF8',newline='') as f:
+        writer = csv.writer(f)
+
+        # write the header
+        writer.writerow(total_waiting_vehicle)
+
+  
     nextGreen=state_action_pair.action_pair[get_state(param_right,param_down,param_left,param_up)]
+    
     if nextGreen==currentGreen:
         nextGreen=(currentGreen+1)%noOfSignals
+    
+    if nextGreen==0:
+        action_for_arduino=100
+    elif nextGreen==1:
+        action_for_arduino=101
+    elif nextGreen==2:
+        action_for_arduino=102
+    elif nextGreen==3:
+        action_for_arduino=103
+
+    serialcomm.write((str(action_for_arduino)).encode())              #arduino
+    time.sleep(0.5)                                         #arduino
+
+    print(serialcomm.readline().decode('ascii'))            #arduino
 
     print ('next green:',nextGreen,'\n')
 
@@ -453,8 +497,8 @@ def generateVehicles():
         temp = random.randint(0,99)
         right_prob=random.randint(0,99)         
         direction_number = 0
-        # dist = [25,50,75,100]
-        dist = [40,50,90,100]
+        dist = [25,50,75,100]
+        # dist = [40,80,90,100]
         if(temp<dist[0]):
             direction_number = 0
         elif(temp<dist[1]):
@@ -520,12 +564,7 @@ def car_counter_down():
                 if(vclass=='car'):
                     noOfCars += 1
                     
-                elif(vclass=='bus'):
-                    noOfBuses += 1
-                elif(vclass=='truck'):
-                    noOfTrucks += 1
-                elif(vclass=='rickshaw'):
-                    noOfRickshaws += 1
+                
     print('cars to down',noOfCars)
     
     return noOfCars
@@ -545,12 +584,7 @@ def car_counter_left():
                 if(vclass=='car'):
                     noOfCars += 1
                     
-                elif(vclass=='bus'):
-                    noOfBuses += 1
-                elif(vclass=='truck'):
-                    noOfTrucks += 1
-                elif(vclass=='rickshaw'):
-                    noOfRickshaws += 1
+                
     print('cars to left',noOfCars)
   
     return noOfCars
@@ -570,12 +604,7 @@ def car_counter_up():
                 if(vclass=='car'):
                     noOfCars += 1
                     
-                elif(vclass=='bus'):
-                    noOfBuses += 1
-                elif(vclass=='truck'):
-                    noOfTrucks += 1
-                elif(vclass=='rickshaw'):
-                    noOfRickshaws += 1
+                
     print('cars to up',noOfCars)
   
     return noOfCars
@@ -584,12 +613,16 @@ def get_state(_car_counter_right,_car_counter_down,_car_counter_left,_car_counte
     condition=[0,0,0,0]
     if (_car_counter_right<=4):
         condition[0]=0
+        get_state.led = str(condition[0]).strip()
+        
     elif _car_counter_right>4 and _car_counter_right<=9:
         condition[0]=1
+        get_state.led = str(condition[0]).strip()
+       
     elif _car_counter_right>9: 
         condition[0]=2
-
-    
+        get_state.led = str(condition[0]).strip()
+        
     if _car_counter_down<=4:
         condition[1]=0
     elif _car_counter_down>4 and _car_counter_down<=9:
@@ -695,6 +728,9 @@ class Main:
             screen.blit(vehicle.image, [vehicle.x, vehicle.y])
             vehicle.move()
         pygame.display.update()
-
         
+      
 Main()
+
+
+   
