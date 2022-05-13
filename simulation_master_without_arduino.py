@@ -1,3 +1,5 @@
+
+
 import csv
 import serial
 import random
@@ -6,13 +8,16 @@ import threading
 import pygame
 import sys
 import os
-# import Traffic_Q_Learning3
+import string
+import json
+import Traffic_Q_Learning3
 
 
 
 sys.path.insert(0, 'D:\Documents\kuliah\SMT_8\TA 2\Implementasi Produk\References\Traffic-Intersection-Simulation-with-Stats-main\Traffic-Intersection-Simulation-with-Stats-main')
-import Traffic_Q_Learning3_
-from Traffic_Q_Learning3_ import choose_action,state_action_pair
+# import Traffic_Q_Learning3_
+# from Traffic_Q_Learning3_ import choose_action,state_action_pair
+from Traffic_Q_Learning3 import choose_action,state_action_pair
 # serialcomm = serial.Serial('COM5', 9600)            #arduino
 
 # serialcomm.timeout = 1                              #arduino
@@ -72,6 +77,7 @@ vehicleCountTexts = ["0", "0", "0", "0"]
 vehicleCountCoods = [(480,210),(880,210),(880,550),(480,550)]
 
 pygame.init()
+clock = pygame.time.Clock()
 simulation = pygame.sprite.Group()
 
 class TrafficSignal:
@@ -394,7 +400,7 @@ def repeat():
         signals[currentGreen].green = defaultGreen[currentGreen]
     signals[currentGreen].yellow = defaultYellow
     signals[currentGreen].red = defaultRed
-       
+    
     currentGreen = nextGreen 
     param_right=car_counter_right()
     param_down=car_counter_down()
@@ -432,9 +438,9 @@ def repeat():
         cumulative_waiting_vehicles=cumulative_waiting_vehicles+total_waiting_vehicle[i]
 
     print('cumulative waiting vehicles:', cumulative_waiting_vehicles)
-     
+    
 
-   
+
 
     with open('data_RL_25,25,25,25.csv', 'a', encoding='UTF8',newline='') as f:
         writer = csv.writer(f)
@@ -442,7 +448,7 @@ def repeat():
         # write the header
         writer.writerow(total_waiting_vehicle)
 
-  
+
     nextGreen=state_action_pair.action_pair[get_state(param_right,param_down,param_left,param_up)]
     
     if nextGreen==currentGreen:
@@ -457,10 +463,10 @@ def repeat():
     elif nextGreen==3:
         action_for_arduino=103
 
-    serialcomm.write((str(action_for_arduino)).encode())              #arduino
-    time.sleep(0.5)                                         #arduino
+    # serialcomm.write((str(action_for_arduino)).encode())              #arduino
+    # time.sleep(0.5)                                         #arduino
 
-    print(serialcomm.readline().decode('ascii'))            #arduino
+    # print(serialcomm.readline().decode('ascii'))            #arduino
 
     print ('next green:',nextGreen,'\n')
 
@@ -533,9 +539,9 @@ def simTime():
 def car_counter_right():
     global noOfCars, noOfBikes, noOfBuses, noOfTrucks, noOfRickshaws, noOfLanes
     global carTime, busTime, truckTime, rickshawTime, bikeTime
-  
+
     noOfCars, noOfBuses, noOfTrucks, noOfRickshaws, noOfBikes = 0,0,0,0,0
-   
+
     for i in range(1,3):
         for j in range(len(vehicles[directionNumbers[0]][i])):
             vehicle = vehicles[directionNumbers[0]][i][j]
@@ -552,9 +558,9 @@ def car_counter_right():
 def car_counter_down():
     global noOfCars, noOfBikes, noOfBuses, noOfTrucks, noOfRickshaws, noOfLanes
     global carTime, busTime, truckTime, rickshawTime, bikeTime
-  
+
     noOfCars, noOfBuses, noOfTrucks, noOfRickshaws, noOfBikes = 0,0,0,0,0
-   
+
     for i in range(1,3):
         for j in range(len(vehicles[directionNumbers[1]][i])):
             vehicle = vehicles[directionNumbers[1]][i][j]
@@ -572,9 +578,9 @@ def car_counter_down():
 def car_counter_left():
     global noOfCars, noOfBikes, noOfBuses, noOfTrucks, noOfRickshaws, noOfLanes
     global carTime, busTime, truckTime, rickshawTime, bikeTime
-  
+
     noOfCars, noOfBuses, noOfTrucks, noOfRickshaws, noOfBikes = 0,0,0,0,0
-  
+
     for i in range(1,3):
         for j in range(len(vehicles[directionNumbers[2]][i])):
             vehicle = vehicles[directionNumbers[2]][i][j]
@@ -586,15 +592,15 @@ def car_counter_left():
                     
                 
     print('cars to left',noOfCars)
-  
+
     return noOfCars
 
 def car_counter_up():
     global noOfCars, noOfBikes, noOfBuses, noOfTrucks, noOfRickshaws, noOfLanes
     global carTime, busTime, truckTime, rickshawTime, bikeTime
-  
+
     noOfCars, noOfBuses, noOfTrucks, noOfRickshaws, noOfBikes = 0,0,0,0,0
-   
+
     for i in range(1,3):
         for j in range(len(vehicles[directionNumbers[3]][i])):
             vehicle = vehicles[directionNumbers[3]][i][j]
@@ -606,7 +612,7 @@ def car_counter_up():
                     
                 
     print('cars to up',noOfCars)
-  
+
     return noOfCars
 
 def get_state(_car_counter_right,_car_counter_down,_car_counter_left,_car_counter_up):
@@ -618,7 +624,7 @@ def get_state(_car_counter_right,_car_counter_down,_car_counter_left,_car_counte
     elif _car_counter_right>4 and _car_counter_right<=9:
         condition[0]=1
         get_state.led = str(condition[0]).strip()
-       
+    
     elif _car_counter_right>9: 
         condition[0]=2
         get_state.led = str(condition[0]).strip()
@@ -646,6 +652,159 @@ def get_state(_car_counter_right,_car_counter_down,_car_counter_left,_car_counte
 
     state= condition[0]*pow(3,3) + condition[1]*pow(3,2) + condition[2]*pow(3,1) + condition[3]*pow(3,0)       
     return state
+class TextBox(object):
+    def __init__(self,rect,**kwargs):
+        '''
+        Optional kwargs and their defaults:
+            "id" : None,
+            "command" : None,
+                function to execute upon enter key
+                Callback for command takes 2 args, id and final (the string in the textbox)
+            "active" : True,
+                textbox active on opening of window
+            "color" : pygame.Color("white"),
+                background color
+            "font_color" : pygame.Color("black"),
+            "outline_color" : pygame.Color("black"),
+            "outline_width" : 2,
+            "active_color" : pygame.Color("blue"),
+            "font" : pygame.font.Font(None, self.rect.height+4),
+            "clear_on_enter" : False,
+                remove text upon enter
+            "inactive_on_enter" : True
+            "blink_speed": 500
+                prompt blink time in milliseconds
+            "delete_speed": 500
+                backspace held clear speed in milliseconds
+             
+        Values:
+            self.rect = pygame.Rect(rect)
+            self.buffer = []
+            self.final = None
+            self.rendered = None
+            self.render_rect = None
+            self.render_area = None
+            self.blink = True
+            self.blink_timer = 0.0
+            self.delete_timer = 0.0
+            self.accepted = string.ascii_letters+string.digits+string.punctuation+" "
+        '''
+        self.rect = pygame.Rect(rect)
+        self.buffer = []
+        self.final = None
+        self.rendered = None
+        self.render_rect = None
+        self.render_area = None
+        self.blink = True
+        self.blink_timer = 0.0
+        self.delete_timer = 0.0
+        self.accepted = string.ascii_letters+string.digits+string.punctuation+" "
+        self.process_kwargs(kwargs)
+ 
+    def process_kwargs(self,kwargs):
+        defaults = {"id" : None,
+                    "command" : None,
+                    "active" : True,
+                    "color" : pygame.Color("white"),
+                    "font_color" : pygame.Color("black"),
+                    "outline_color" : pygame.Color("black"),
+                    "outline_width" : 2,
+                    "active_color" : pygame.Color("blue"),
+                    "font" : pygame.font.Font(None, self.rect.height+4),
+                    "clear_on_enter" : False,
+                    "inactive_on_enter" : True,
+                    "blink_speed": 500,
+                    "delete_speed": 75}
+        for kwarg in kwargs:
+            if kwarg in defaults:
+                defaults[kwarg] = kwargs[kwarg]
+            else:
+                raise KeyError("TextBox accepts no keyword {}.".format(kwarg))
+        self.__dict__.update(defaults)
+ 
+    # def get_event(self,event, mouse_pos=None):
+    #     ''' Call this on your event loop
+         
+    #         for event in pygame.event.get():
+    #             TextBox.get_event(event)
+    #     '''
+    #     if event.type == pygame.KEYDOWN and self.active:
+    #         if event.key in (pygame.K_RETURN,pygame.K_KP_ENTER):
+    #             self.execute()
+    #         elif event.key == pygame.K_BACKSPACE:
+    #             if self.buffer:
+    #                 self.buffer.pop()
+    #         elif event.key == pygame.K_ESCAPE:
+    #             showStats()
+                
+    #             sys.exit()
+
+    #         elif event.unicode in self.accepted:
+    #             self.buffer.append(event.unicode)
+    #     elif event.type == pygame.MOUSEBUTTONDOWN :
+    #         if 70 <= mouse[0] <= 112 and 250 <= mouse[1] <= 290:    
+    #             execfile("Traffic_Q_Learning3.py")
+ 
+    def execute(self):
+        if self.command:
+            self.command(self.id,self.final)
+        self.active = not self.inactive_on_enter
+        if self.clear_on_enter:
+            self.buffer = []
+             
+    def switch_blink(self):
+        if pygame.time.get_ticks()-self.blink_timer > self.blink_speed:
+            self.blink = not self.blink
+            self.blink_timer = pygame.time.get_ticks()
+ 
+    def update(self):
+        '''
+        Call once on your main game loop
+        '''
+        new = "".join(self.buffer)
+        if new != self.final:
+            self.final = new
+            self.rendered = self.font.render(self.final, True, self.font_color)
+            self.render_rect = self.rendered.get_rect(x=self.rect.x+2,
+                                                      centery=self.rect.centery)
+            if self.render_rect.width > self.rect.width-6:
+                offset = self.render_rect.width-(self.rect.width-6)
+                self.render_area = pygame.Rect(offset,0,self.rect.width-6,
+                                           self.render_rect.height)
+            else:
+                self.render_area = self.rendered.get_rect(topleft=(0,0))
+        self.switch_blink()
+        self.handle_held_backspace()
+         
+    def handle_held_backspace(self):
+        if pygame.time.get_ticks()-self.delete_timer > self.delete_speed:
+            self.delete_timer = pygame.time.get_ticks()
+            keys = pygame.key.get_pressed()
+            if keys[pygame.K_BACKSPACE]:
+                if self.buffer:
+                    self.buffer.pop()
+ 
+    def draw(self,surface):
+        '''
+        Call once on your main game loop
+        '''
+        outline_color = self.active_color if self.active else self.outline_color
+        outline = self.rect.inflate(self.outline_width*2,self.outline_width*2)
+        surface.fill(outline_color,outline)
+        surface.fill(self.color,self.rect)
+        if self.rendered:
+            surface.blit(self.rendered,self.render_rect,self.render_area)
+        if self.blink and self.active:
+            curse = self.render_area.copy()
+            curse.topleft = self.render_rect.topleft
+            surface.fill(self.font_color,(curse.right+1,curse.y,2,curse.h))
+
+def write_json(new_data, filename='alpha & gamma.json'):
+    with open (filename,'w+') as file:
+        json.dump(new_data, file, indent = 4)   
+
+
+
 
 class Main:
     global allowedVehicleTypesList
@@ -659,6 +818,10 @@ class Main:
     thread1.start()
 
     # Colours 
+    color_light = (170,170,170)
+
+# dark shade of the button
+    color_dark = (100,100,100)
     black = (0, 0, 0)
     white = (255, 255, 255)
 
@@ -667,9 +830,18 @@ class Main:
     screenHeight = 800
     screenSize = (screenWidth, screenHeight)
 
+    input_rect = pygame.Rect(200, 200, 140, 32)
+    input_rect_2 = pygame.Rect(400, 400, 140, 32)
+    color_active = pygame.Color('lightskyblue3')
+    color_passive = pygame.Color('chartreuse4')
+    color = color_passive
+    
+    active_1 = True
+    active_2 = False
+
     # Setting background image i.e. image of intersection
     background = pygame.image.load('images/intersection.png')
-
+    
     screen = pygame.display.set_mode(screenSize)
     pygame.display.set_caption("SIMULATION")
 
@@ -678,6 +850,9 @@ class Main:
     yellowSignal = pygame.image.load('images/signals/yellow.png')
     greenSignal = pygame.image.load('images/signals/green.png')
     font = pygame.font.Font(None, 30)
+    user_text_1 = ''
+    user_text_2 = ''
+    text = font.render('Reset' , True , white,black)
     thread2 = threading.Thread(name="generateVehicles",target=generateVehicles, args=())    # Generating vehicles
     thread2.daemon = True
     thread2.start()
@@ -686,11 +861,128 @@ class Main:
     thread3.daemon = True
     thread3.start()
 
+
+
+
+    # def name_on_enter(id, final):
+    #     alpha_temp='{}'.format(final)
+    #     print(alpha_temp)
+    #     alpha='%s'%alpha_temp
+    #     # alpha_json={"alpha":alpha}
+    #     with open("alpha & gamma.json", "r") as file:
+    #         data = json.load(file)
+    #     data['Parameters']['Alpha']=alpha
+    #     write_json(data)
+    #     # print('password:',str(password))
+    #     return alpha
+        
+    # def pass_on_enter(id, final):
+    #     gamma_temp='{}'.format(final)
+    #     print(gamma_temp)
+    #     gamma='%s'%gamma_temp
+    #     with open("alpha & gamma.json", "r") as file:
+    #         data = json.load(file)
+    #     data['Parameters']['Gamma']=gamma
+    #     write_json(data)
+    #     return gamma
+        
+    # username_settings = {
+    #         "command" : name_on_enter,
+    #         "inactive_on_enter" : False,
+    #     }
+    # password_settings = {
+    #     "command" : pass_on_enter,
+    #     "inactive_on_enter" : False,
+    # }
+    
+    # name_entry = TextBox(rect=(70,100,150,30), **username_settings)
+    # pass_entry = TextBox(rect=(70,200,150,30), **password_settings)
+
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 showStats()
+                # execfile("main.py")
                 sys.exit()
+            
+            # name_entry.get_event(event)
+            # pass_entry.get_event(event)
+
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if input_rect.collidepoint(event.pos)  :
+                    active_1 = True
+                    color=color_active
+                elif 70 <= mouse[0] <= 112 and 250 <= mouse[1] <= 290:    
+                    execfile("main.py")
+                else:
+                    active_1 = False
+                    color=color_passive
+            if active_1==True:
+                if event.type == pygame.KEYDOWN:
+
+                # Check for backspace
+                
+                    if event.key == pygame.K_BACKSPACE:
+        
+                        # get text input from 0 to -1 i.e. end.
+                        user_text_1 = user_text_1[:-1]
+                    
+                    elif event.key == pygame.K_RETURN:
+                        # input_rect_2.collidepoint(event.pos)
+                        angka=float(user_text_1)
+                        print (angka)
+                    
+                    
+
+                    # Unicode standard is used for string
+                    # formation
+                    else:
+                        user_text_1 += event.unicode\
+
+                    # if  event.key == pygame.K_ESCAPE:
+                    #     showStats()
+                    #     sys.exit()
+            # if active_1==True:
+                # pygame.draw.rect(screen, color, input_rect)
+            # pygame.draw.rect(screen, color, input_rect_2)
+
+                # text_surface = font.render(user_text_1, True, (255, 255, 255))
+            # text_surface_2 = font.render(user_text_2, True, (255, 255, 255))
+            
+            # render at position stated in arguments
+                # screen.blit(text_surface, (input_rect.x+5, input_rect.y+5))
+            # screen.blit(text_surface_2, (input_rect_2.x+5, input_rect_2.y+5))
+            
+            # set width of textfield so that text cannot get
+            # outside of user's text input
+                # input_rect.w = max(100, text_surface.get_width()+10)
+            # input_rect_2.w = max(100, text_surface_2.get_width()+10)
+            
+            # display.flip() will update only a portion of the
+            # screen to updated, not full area
+                pygame.display.flip()
+            
+            # clock.tick(60) means that for every second at most
+            # 60 frames should be passed.
+                # clock.tick(60)
+        mouse = pygame.mouse.get_pos()
+        # if width/2 <= mouse[0] <= width/2+140 and height/2 <= mouse[1] <= height/2+40:
+        if 70 <= mouse[0] <= 112 and 250 <= mouse[1] <= 290:
+            # pg.draw.rect(screen,color_light,[width/2,height/2,140,40])
+            pygame.draw.rect(screen,color_light,[70,250,67,40])
+            
+        else:
+            # pg.draw.rect(screen,color_dark,[width/2,height/2,140,40])
+            pygame.draw.rect(screen,color_dark,[70,250,67,40])
+        
+        # superimposing the text onto our button
+        screen.blit(text , (78,260))
+        # name_entry.update()
+        # pass_entry.update()
+        # name_entry.draw(screen)
+        # pass_entry.draw(screen)
+        pygame.display.update()
+
 
         screen.blit(background,(0,0))   # display background in simulation
         for i in range(0,noOfSignals):  # display signal and set timer according to current status: green, yello, or red
@@ -708,7 +1000,7 @@ class Main:
                     signals[i].signalText = "---"
                 screen.blit(redSignal, signalCoods[i])
         signalTexts = ["","","",""]
-      
+    
         for i in range(0,noOfSignals):  
             signalTexts[i] = font.render(str(signals[i].signalText), True, white, black)
             screen.blit(signalTexts[i],signalTimerCoods[i])
@@ -729,8 +1021,5 @@ class Main:
             vehicle.move()
         pygame.display.update()
         
-      
+            
 Main()
-
-
-   
