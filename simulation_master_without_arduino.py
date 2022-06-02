@@ -14,26 +14,37 @@ import Traffic_Q_Learning3
 
 
 
-sys.path.insert(0, 'D:\Documents\kuliah\SMT_8\TA 2\Implementasi Produk\References\Traffic-Intersection-Simulation-with-Stats-main\Traffic-Intersection-Simulation-with-Stats-main')
+# sys.path.insert(0, 'D:\Documents\kuliah\SMT_8\TA 2\Implementasi Produk\References\Traffic-Intersection-Simulation-with-Stats-main\Traffic-Intersection-Simulation-with-Stats-main')
 # import Traffic_Q_Learning3_
 # from Traffic_Q_Learning3_ import choose_action,state_action_pair
 from Traffic_Q_Learning3 import choose_action,state_action_pair
-# serialcomm = serial.Serial('COM5', 9600)            #arduino
+# serialcomm = serial.Serial('COM10', 9600)            #arduino
 
 # serialcomm.timeout = 1                              #arduino
 
 # Default values of signal timers
 # defaultGreen = {0:10, 1:10, 2:10, 3:10}
+with open('alpha & gamma.json', 'r') as file:
+    data = json.load(file)
+
+dist = [0,0,0,0]
+dist[0]=float(data['Distribution']['Dist_from_left'])
+dist[1]=float(data['Distribution']['Dist_from_up'])+dist[0]
+dist[2]=float(data['Distribution']['Dist_from_right'])+dist[1]
+dist[3]=float(data['Distribution']['Dist_from_down'])+dist[2]
+ 
 defaultGreen = {0:5, 1:5, 2:5, 3:5}
 defaultRed = 150
 defaultYellow = 5
 
 total_waiting_vehicle=[]
+# state_to_pynq=[]
 
 signals = []
 noOfSignals = 4
 currentGreen = 0   # Indicates which signal is green currently
 nextGreen = (currentGreen+1)%noOfSignals    # Indicates which signal will turn green next
+# nextGreen=1
 currentYellow = 0   # Indicates whether yellow signal is on or off 
 
 speeds = {'car':3.25, 'bus':1.8, 'truck':1.8, 'bike':2.5}  # average speeds of vehicles
@@ -407,7 +418,7 @@ def repeat():
     param_left=car_counter_left()
     param_up=car_counter_up()
 
-    state_for_arduino=get_state(param_right,param_down,param_left,param_up)
+    state_for_arduino=get_state(param_right,param_down,param_left,param_up)+1
 
     # serialcomm.open()
     # serialcomm.write((str(state_for_arduino)).encode())              #arduino
@@ -417,10 +428,12 @@ def repeat():
 
     
 
-    state_action_pair()
-    print ('state:',get_state(param_right,param_down,param_left,param_up))
+    # state_action_pair()
+    print ('state:',get_state(param_right,param_down,param_left,param_up)+1)
     print ('chosen action:',state_action_pair.action_pair[get_state(param_right,param_down,param_left,param_up)])
-
+    # for i in range (27):
+    #     print ('test chosen action:',i,state_action_pair.action_pair[i])
+    state_to_pynq=get_state(param_right,param_down,param_left,param_up)
     cumulative_waiting_vehicles=0
 
     if currentGreen==0:
@@ -448,20 +461,51 @@ def repeat():
         # write the header
         writer.writerow(total_waiting_vehicle)
 
+    dir_path = 'D:\Documents\kuliah\SMT_8\TA 2\Implementasi Produk\References\Traffic-Intersection-Simulation-with-Stats-main'   #ganti2 sesuai directorynya
+    file_name_state = "state_for_PYNQ.csv"
+    file_name_action = "action_from_PYNQ.csv"
 
+
+    completeName_state = os.path.join(dir_path, file_name_state)
+    completeName_action = os.path.join(dir_path, file_name_action)
+
+    with open(completeName_state, 'w', encoding='UTF8',newline='') as f:        #state_to_PYNQ
+        state_to_PYNQ=state_to_pynq
+        writer = csv.writer(f)
+        # f.write(state_to_PYNQ)
+        # write the header
+        # writer.writerows([state_to_pynq[i:i+4] for i in range(0, len(state_to_pynq), 2)])
+        writer.writerow((state_to_PYNQ,))
+    # with open(completeName_action, 'r') as file:                                #action_from_PYNQ
+    #     reader = csv.reader(file)
+    #     for row in reader:
+    #         # print(int(row[0])+1)
+    #         nextGreen=int(row[0])
+
+    # print('next green dari csv',nextGreen) 
+   
+    print('test state-action pair',state_action_pair.action_pair[2])
     nextGreen=state_action_pair.action_pair[get_state(param_right,param_down,param_left,param_up)]
+    # nextGreen=int(input("Enter action: "))
     
     if nextGreen==currentGreen:
         nextGreen=(currentGreen+1)%noOfSignals
+    # if nextGreen==3:
+    #     nextGreen=1
     
-    if nextGreen==0:
-        action_for_arduino=100
-    elif nextGreen==1:
-        action_for_arduino=101
-    elif nextGreen==2:
-        action_for_arduino=102
-    elif nextGreen==3:
-        action_for_arduino=103
+    # nextGreen=0
+    if currentGreen==0:
+        action_for_arduino=0
+    elif currentGreen==1:
+        action_for_arduino=1
+    elif currentGreen==2:
+        action_for_arduino=2
+    elif currentGreen==3:
+        action_for_arduino=3
+    # serialcomm.write((str(state_for_arduino)+str(action_for_arduino)).encode())              #arduino
+    # time.sleep(0.5)                                         #arduino
+
+    # print(serialcomm.readline().decode('ascii'))            #arduino
 
     # serialcomm.write((str(action_for_arduino)).encode())              #arduino
     # time.sleep(0.5)                                         #arduino
@@ -486,6 +530,7 @@ def updateValues():
             signals[i].red-=1
 
 # Generating vehicles in the simulation
+
 def generateVehicles():
     while(True):
         
@@ -503,7 +548,7 @@ def generateVehicles():
         temp = random.randint(0,99)
         right_prob=random.randint(0,99)         
         direction_number = 0
-        dist = [25,50,75,100]
+        # dist = [25,50,75,100]
         # dist = [40,80,90,100]
         if(temp<dist[0]):
             direction_number = 0
@@ -537,10 +582,10 @@ def simTime():
             os._exit(1) 
 
 def car_counter_right():
-    global noOfCars, noOfBikes, noOfBuses, noOfTrucks, noOfRickshaws, noOfLanes
-    global carTime, busTime, truckTime, rickshawTime, bikeTime
+    global noOfCars
+    global carTime
 
-    noOfCars, noOfBuses, noOfTrucks, noOfRickshaws, noOfBikes = 0,0,0,0,0
+    noOfCars= 0
 
     for i in range(1,3):
         for j in range(len(vehicles[directionNumbers[0]][i])):
@@ -556,10 +601,10 @@ def car_counter_right():
 
 
 def car_counter_down():
-    global noOfCars, noOfBikes, noOfBuses, noOfTrucks, noOfRickshaws, noOfLanes
-    global carTime, busTime, truckTime, rickshawTime, bikeTime
+    global noOfCars
+    global carTime
 
-    noOfCars, noOfBuses, noOfTrucks, noOfRickshaws, noOfBikes = 0,0,0,0,0
+    noOfCars= 0
 
     for i in range(1,3):
         for j in range(len(vehicles[directionNumbers[1]][i])):
@@ -576,10 +621,10 @@ def car_counter_down():
     return noOfCars
 
 def car_counter_left():
-    global noOfCars, noOfBikes, noOfBuses, noOfTrucks, noOfRickshaws, noOfLanes
-    global carTime, busTime, truckTime, rickshawTime, bikeTime
+    global noOfCars
+    global carTime
 
-    noOfCars, noOfBuses, noOfTrucks, noOfRickshaws, noOfBikes = 0,0,0,0,0
+    noOfCars= 0
 
     for i in range(1,3):
         for j in range(len(vehicles[directionNumbers[2]][i])):
@@ -596,10 +641,10 @@ def car_counter_left():
     return noOfCars
 
 def car_counter_up():
-    global noOfCars, noOfBikes, noOfBuses, noOfTrucks, noOfRickshaws, noOfLanes
-    global carTime, busTime, truckTime, rickshawTime, bikeTime
+    global noOfCars
+    global carTime
 
-    noOfCars, noOfBuses, noOfTrucks, noOfRickshaws, noOfBikes = 0,0,0,0,0
+    noOfCars= 0
 
     for i in range(1,3):
         for j in range(len(vehicles[directionNumbers[3]][i])):
@@ -617,78 +662,115 @@ def car_counter_up():
 
 def get_state(_car_counter_right,_car_counter_down,_car_counter_left,_car_counter_up):
     condition=[0,0,0,0]
-    if (_car_counter_right<=4):
+    if (_car_counter_right<=2):
         condition[0]=0
-        get_state.led = str(condition[0]).strip()
         
-    elif _car_counter_right>4 and _car_counter_right<=9:
+    elif _car_counter_right>2 and _car_counter_right<=4:
         condition[0]=1
-        get_state.led = str(condition[0]).strip()
-    
-    elif _car_counter_right>9: 
-        condition[0]=2
-        get_state.led = str(condition[0]).strip()
         
-    if _car_counter_down<=4:
+    elif _car_counter_right>4 and _car_counter_right<=6:
+        condition[0]=2
+
+    elif _car_counter_right>6 and _car_counter_right<=8:
+        condition[0]=3
+    elif _car_counter_right>8 and _car_counter_right<=10:
+        condition[0]=4
+        
+    elif _car_counter_right>10 and _car_counter_right<=12:
+        condition[0]=5
+
+    elif _car_counter_right>12 and _car_counter_right<=14:
+        condition[0]=6
+    
+    elif _car_counter_right>14: 
+        condition[0]=7
+
+
+
+    if (_car_counter_down<=2):
         condition[1]=0
-    elif _car_counter_down>4 and _car_counter_down<=9:
+        
+    elif _car_counter_down>2 and _car_counter_down<=4:
         condition[1]=1
-    elif _car_counter_down>9:
+
+    elif _car_counter_down>4 and _car_counter_down<=6:
         condition[1]=2
 
-    if _car_counter_left<=4:
+    elif _car_counter_down>6 and _car_counter_down<=8:
+        condition[1]=3
+    elif _car_counter_down>8 and _car_counter_down<=10:
+        condition[1]=4
+
+    elif _car_counter_down>10 and _car_counter_down<=12:
+        condition[1]=5
+
+    elif _car_counter_down>12 and _car_counter_down<=14:
+        condition[1]=6
+    
+    elif _car_counter_down>14: 
+        condition[1]=7
+        
+
+
+    if (_car_counter_left<=2):
         condition[2]=0
-    elif _car_counter_left>4 and _car_counter_left<=9:
+        
+    elif _car_counter_left>2 and _car_counter_left<=4:
         condition[2]=1
-    elif _car_counter_left>9:
+
+    elif _car_counter_left>4 and _car_counter_left<=6:
         condition[2]=2
 
-    if _car_counter_up<=4:
+    elif _car_counter_left>6 and _car_counter_left<=8:
+        condition[2]=3
+    elif _car_counter_left>8 and _car_counter_left<=10:
+        condition[2]=4
+        
+    elif _car_counter_left>10 and _car_counter_left<=12:
+        condition[2]=5
+
+    elif _car_counter_left>12 and _car_counter_left<=14:
+        condition[2]=6
+    
+    elif _car_counter_left>14: 
+        condition[2]=7
+
+
+
+    if (_car_counter_up<=2):
         condition[3]=0
-    elif _car_counter_up>4 and _car_counter_up<=9:
+        
+    elif _car_counter_up>2 and _car_counter_up<=4:
         condition[3]=1
-    elif _car_counter_up>9:
+
+    elif _car_counter_up>4 and _car_counter_up<=6:
         condition[3]=2
 
-    state= condition[0]*pow(3,3) + condition[1]*pow(3,2) + condition[2]*pow(3,1) + condition[3]*pow(3,0)       
+    elif _car_counter_up>6 and _car_counter_up<=8:
+        condition[3]=3
+    elif _car_counter_up>8 and _car_counter_up<=10:
+        condition[3]=4
+        
+    elif _car_counter_up>10 and _car_counter_up<=12:
+        condition[3]=5
+
+    elif _car_counter_up>12 and _car_counter_up<=14:
+        condition[3]=6
+    
+    elif _car_counter_up>14: 
+        condition[3]=7
+
+    state= condition[0]*pow(8,3) + condition[1]*pow(8,2) + condition[2]*pow(8,1) + condition[3]*pow(8,0)
+    # state= condition[1]*pow(8,2) + condition[2]*pow(8,1) + condition[3]*pow(8,0)
+
+    # state= condition[0]*pow(3,3) + condition[1]*pow(3,2) + condition[2]*pow(3,1) + condition[3]*pow(3,0)
+    # state=  condition[0]*pow(3,2) + condition[1]*pow(3,1) + condition[2]*pow(3,0)
+    
+    state_to_pynq='{:08b}'.format(state)       
     return state
 class TextBox(object):
     def __init__(self,rect,**kwargs):
-        '''
-        Optional kwargs and their defaults:
-            "id" : None,
-            "command" : None,
-                function to execute upon enter key
-                Callback for command takes 2 args, id and final (the string in the textbox)
-            "active" : True,
-                textbox active on opening of window
-            "color" : pygame.Color("white"),
-                background color
-            "font_color" : pygame.Color("black"),
-            "outline_color" : pygame.Color("black"),
-            "outline_width" : 2,
-            "active_color" : pygame.Color("blue"),
-            "font" : pygame.font.Font(None, self.rect.height+4),
-            "clear_on_enter" : False,
-                remove text upon enter
-            "inactive_on_enter" : True
-            "blink_speed": 500
-                prompt blink time in milliseconds
-            "delete_speed": 500
-                backspace held clear speed in milliseconds
-             
-        Values:
-            self.rect = pygame.Rect(rect)
-            self.buffer = []
-            self.final = None
-            self.rendered = None
-            self.render_rect = None
-            self.render_area = None
-            self.blink = True
-            self.blink_timer = 0.0
-            self.delete_timer = 0.0
-            self.accepted = string.ascii_letters+string.digits+string.punctuation+" "
-        '''
+       
         self.rect = pygame.Rect(rect)
         self.buffer = []
         self.final = None
@@ -722,29 +804,7 @@ class TextBox(object):
                 raise KeyError("TextBox accepts no keyword {}.".format(kwarg))
         self.__dict__.update(defaults)
  
-    # def get_event(self,event, mouse_pos=None):
-    #     ''' Call this on your event loop
-         
-    #         for event in pygame.event.get():
-    #             TextBox.get_event(event)
-    #     '''
-    #     if event.type == pygame.KEYDOWN and self.active:
-    #         if event.key in (pygame.K_RETURN,pygame.K_KP_ENTER):
-    #             self.execute()
-    #         elif event.key == pygame.K_BACKSPACE:
-    #             if self.buffer:
-    #                 self.buffer.pop()
-    #         elif event.key == pygame.K_ESCAPE:
-    #             showStats()
-                
-    #             sys.exit()
 
-    #         elif event.unicode in self.accepted:
-    #             self.buffer.append(event.unicode)
-    #     elif event.type == pygame.MOUSEBUTTONDOWN :
-    #         if 70 <= mouse[0] <= 112 and 250 <= mouse[1] <= 290:    
-    #             execfile("Traffic_Q_Learning3.py")
- 
     def execute(self):
         if self.command:
             self.command(self.id,self.final)
@@ -845,6 +905,9 @@ class Main:
     screen = pygame.display.set_mode(screenSize)
     pygame.display.set_caption("SIMULATION")
 
+    
+
+
     # Loading signal images and font
     redSignal = pygame.image.load('images/signals/red.png')
     yellowSignal = pygame.image.load('images/signals/yellow.png')
@@ -853,6 +916,19 @@ class Main:
     user_text_1 = ''
     user_text_2 = ''
     text = font.render('Reset' , True , white,black)
+
+   
+
+    to_right_dist_text = font.render(('Distribusi Kendaraan dari arah kiri: '+str(dist[0])+'%'), True, white, black)
+    to_down_dist_text = font.render(('Distribusi Kendaraan dari arah atas: '+str(dist[1]-dist[0])+'%'), True, white, black)
+    to_left_dist_text = font.render(('Distribusi Kendaraan dari arah kanan: '+str(dist[2]-dist[1])+'%'), True, white, black)
+    to_up_dist_text =  font.render(('Distribusi Kendaraan dari arah bawah: '+str(dist[3]-dist[2])+'%'), True, white, black)
+
+    alpha_text = font.render(('Alpha: '+str(data['Parameters']['Alpha'])), True, white, black)
+    
+
+    gamma_text = font.render(('Gamma: '+str(data['Parameters']['Gamma'])), True, white, black)
+    
     thread2 = threading.Thread(name="generateVehicles",target=generateVehicles, args=())    # Generating vehicles
     thread2.daemon = True
     thread2.start()
@@ -861,42 +937,6 @@ class Main:
     thread3.daemon = True
     thread3.start()
 
-
-
-
-    # def name_on_enter(id, final):
-    #     alpha_temp='{}'.format(final)
-    #     print(alpha_temp)
-    #     alpha='%s'%alpha_temp
-    #     # alpha_json={"alpha":alpha}
-    #     with open("alpha & gamma.json", "r") as file:
-    #         data = json.load(file)
-    #     data['Parameters']['Alpha']=alpha
-    #     write_json(data)
-    #     # print('password:',str(password))
-    #     return alpha
-        
-    # def pass_on_enter(id, final):
-    #     gamma_temp='{}'.format(final)
-    #     print(gamma_temp)
-    #     gamma='%s'%gamma_temp
-    #     with open("alpha & gamma.json", "r") as file:
-    #         data = json.load(file)
-    #     data['Parameters']['Gamma']=gamma
-    #     write_json(data)
-    #     return gamma
-        
-    # username_settings = {
-    #         "command" : name_on_enter,
-    #         "inactive_on_enter" : False,
-    #     }
-    # password_settings = {
-    #     "command" : pass_on_enter,
-    #     "inactive_on_enter" : False,
-    # }
-    
-    # name_entry = TextBox(rect=(70,100,150,30), **username_settings)
-    # pass_entry = TextBox(rect=(70,200,150,30), **password_settings)
 
     while True:
         for event in pygame.event.get():
@@ -939,32 +979,10 @@ class Main:
                     else:
                         user_text_1 += event.unicode\
 
-                    # if  event.key == pygame.K_ESCAPE:
-                    #     showStats()
-                    #     sys.exit()
-            # if active_1==True:
-                # pygame.draw.rect(screen, color, input_rect)
-            # pygame.draw.rect(screen, color, input_rect_2)
-
-                # text_surface = font.render(user_text_1, True, (255, 255, 255))
-            # text_surface_2 = font.render(user_text_2, True, (255, 255, 255))
-            
-            # render at position stated in arguments
-                # screen.blit(text_surface, (input_rect.x+5, input_rect.y+5))
-            # screen.blit(text_surface_2, (input_rect_2.x+5, input_rect_2.y+5))
-            
-            # set width of textfield so that text cannot get
-            # outside of user's text input
-                # input_rect.w = max(100, text_surface.get_width()+10)
-            # input_rect_2.w = max(100, text_surface_2.get_width()+10)
-            
-            # display.flip() will update only a portion of the
-            # screen to updated, not full area
+    
                 pygame.display.flip()
             
-            # clock.tick(60) means that for every second at most
-            # 60 frames should be passed.
-                # clock.tick(60)
+            
         mouse = pygame.mouse.get_pos()
         # if width/2 <= mouse[0] <= width/2+140 and height/2 <= mouse[1] <= height/2+40:
         if 70 <= mouse[0] <= 112 and 250 <= mouse[1] <= 290:
@@ -977,6 +995,15 @@ class Main:
         
         # superimposing the text onto our button
         screen.blit(text , (78,260))
+        screen.blit(alpha_text,(78,150))
+        screen.blit(gamma_text,(78,185))
+
+        screen.blit(to_right_dist_text,(120,310))
+        screen.blit(to_down_dist_text,(800,125))
+        screen.blit(to_left_dist_text,(850,525))
+        screen.blit(to_up_dist_text,(130,725))
+
+
         # name_entry.update()
         # pass_entry.update()
         # name_entry.draw(screen)
