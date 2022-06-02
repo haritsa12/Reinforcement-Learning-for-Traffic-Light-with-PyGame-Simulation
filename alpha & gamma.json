@@ -1,0 +1,12 @@
+{
+    "Parameters": {
+        "Alpha": "0.6",
+        "Gamma": "0.925"
+    },
+    "Distribution": {
+        "Dist_from_left": "25",
+        "Dist_from_up": "25",
+        "Dist_from_right": "25",
+        "Dist_from_down": "25"
+    }
+}
